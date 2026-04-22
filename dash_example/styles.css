@@ -1,0 +1,331 @@
+/* assets/styles.css
+   Dash automatically serves everything in /assets/.
+   Art-deco geometric theme: deep teal + cream + gold.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap');
+
+/* ── Tokens ───────────────────────────────────────────────────────────────── */
+:root {
+  --bg:         #0d1a1c;
+  --surface:    #122023;
+  --panel:      #0a1618;
+  --border:     #1e3538;
+  --border-hi:  #2a5055;
+  --gold:       #c8973a;
+  --gold-dim:   #7a5c22;
+  --gold-glow:  rgba(200,151,58,.12);
+  --teal:       #1a7a80;
+  --teal-hi:    #22a0a8;
+  --cream:      #f2ead8;
+  --cream-mid:  #9a9080;
+  --cream-lo:   #3a3530;
+  --red:        #c04848;
+  --mono:       "DM Mono", monospace;
+  --display:    "Cinzel", serif;
+  --radius:     2px;
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #react-entry-point, ._dash-loading, .page-root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--cream);
+  font-family: var(--mono);
+}
+
+/* Dash injected wrappers */
+#react-entry-point > div { height: 100%; }
+
+/* ── Page layout ──────────────────────────────────────────────────────────── */
+.page-root {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: 52px 1fr 44px;
+  grid-template-columns: 1fr;
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(26,122,128,.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(200,151,58,.05) 0%, transparent 60%),
+    var(--bg);
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-glyph {
+  font-size: 18px;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.wordmark {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: .28em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.status-dot {
+  color: var(--teal-hi);
+  font-size: 8px;
+}
+
+.user-name  { color: var(--cream); font-weight: 500; }
+.user-email { color: var(--cream-mid); }
+
+.signout-btn {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: .2em;
+  color: var(--cream-lo);
+  text-decoration: none;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: color .15s, border-color .15s;
+}
+.signout-btn:hover { color: var(--red); border-color: var(--red); }
+
+/* ── Main / calculator ────────────────────────────────────────────────────── */
+.main-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.calculator-frame {
+  position: relative;
+  width: 360px;
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(200,151,58,.08),
+    inset 0 0 0 1px rgba(200,151,58,.04),
+    0 32px 80px rgba(0,0,0,.7);
+}
+
+/* Decorative corner notches */
+.corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: var(--gold);
+  border-style: solid;
+  z-index: 2;
+}
+.corner.tl { top: 0;  left:  0;  border-width: 2px 0 0 2px; }
+.corner.tr { top: 0;  right: 0;  border-width: 2px 2px 0 0; }
+.corner.bl { bottom:0;left:  0;  border-width: 0 0 2px 2px; }
+.corner.br { bottom:0;right: 0;  border-width: 0 2px 2px 0; }
+
+/* ── Display ──────────────────────────────────────────────────────────────── */
+.display-panel {
+  background: var(--panel);
+  padding: 22px 22px 14px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+/* Faint horizontal scan-lines for depth */
+.display-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0,0,0,.06) 3px,
+    rgba(0,0,0,.06) 4px
+  );
+  pointer-events: none;
+}
+
+.display-tape {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--cream-lo);
+  min-height: 16px;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 8px;
+}
+
+.display-main {
+  font-family: var(--mono);
+  font-size: 42px;
+  color: var(--gold);
+  text-align: right;
+  line-height: 1;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 0 30px var(--gold-glow);
+  transition: color .1s;
+}
+
+.display-main.display-error {
+  font-size: 20px;
+  color: var(--red);
+  text-shadow: none;
+  letter-spacing: .04em;
+}
+
+.display-author {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--teal);
+  text-align: right;
+  margin-top: 8px;
+  letter-spacing: .1em;
+  min-height: 14px;
+}
+
+/* ── History ──────────────────────────────────────────────────────────────── */
+.history-panel {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 18px;
+  min-height: 58px;
+  max-height: 58px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.history-panel::-webkit-scrollbar { display: none; }
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  line-height: 1.9;
+  color: var(--cream-lo);
+  animation: slideIn .2s ease;
+}
+
+.history-row .h-result { color: var(--cream-mid); }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Gold rule ────────────────────────────────────────────────────────────── */
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--gold-dim), transparent);
+  margin: 0;
+}
+
+/* ── Button grid ──────────────────────────────────────────────────────────── */
+.btn-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+}
+
+.calc-btn {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 400;
+  background: var(--surface);
+  color: var(--cream);
+  border: none;
+  cursor: pointer;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .08s, transform .06s;
+  -webkit-user-select: none;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+  outline: none;
+}
+
+.calc-btn:hover   { background: #1a2e31; }
+.calc-btn:active  { transform: scale(.90); }
+
+.btn-op {
+  color: var(--teal-hi);
+  font-size: 22px;
+}
+.btn-op:hover { background: rgba(26,122,128,.15); }
+
+.btn-fn {
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: .1em;
+  color: var(--gold);
+}
+.btn-fn:hover { background: var(--gold-glow); }
+
+.btn-clr {
+  color: var(--red) !important;
+}
+.btn-clr:hover { background: rgba(192,72,72,.12) !important; }
+
+.btn-eq {
+  background: var(--gold);
+  color: var(--panel);
+  font-size: 26px;
+  font-weight: 500;
+}
+.btn-eq:hover  { background: #d4a445; }
+.btn-eq:active { transform: scale(.88); }
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.footer-note {
+  font-family: var(--display);
+  font-size: 8px;
+  letter-spacing: .2em;
+  color: var(--cream-lo);
+  text-transform: uppercase;
+}

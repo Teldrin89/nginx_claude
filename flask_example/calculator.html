@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CALC — {{ user.name or user.username }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Reset & tokens ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0e0e0e;
+      --surface:     #161616;
+      --panel:       #1e1e1e;
+      --border:      #2a2a2a;
+      --border-hi:   #3a3a3a;
+      --amber:       #f0a500;
+      --amber-dim:   #a07010;
+      --amber-glow:  rgba(240,165,0,.15);
+      --red:         #e04040;
+      --text-hi:     #f0ede8;
+      --text-mid:    #8a8580;
+      --text-lo:     #454340;
+      --mono:        "Share Tech Mono", monospace;
+      --sans:        "Barlow", sans-serif;
+      --radius:      4px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-hi);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      grid-template-columns: 1fr;
+    }
+
+    /* ── Top bar ─────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      height: 52px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 13px;
+      letter-spacing: .18em;
+      color: var(--amber);
+      text-transform: uppercase;
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-mid);
+    }
+
+    .user-pill .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 6px var(--amber);
+      flex-shrink: 0;
+    }
+
+    .user-pill strong { color: var(--text-hi); font-weight: 600; }
+
+    .logout-link {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .12em;
+      color: var(--text-lo);
+      text-decoration: none;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: color .15s, border-color .15s;
+    }
+    .logout-link:hover { color: var(--red); border-color: var(--red); }
+
+    /* ── Main layout ─────────────────────────────────────────────── */
+    main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    .calculator {
+      width: 340px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(240,165,0,.06),
+        0 24px 64px rgba(0,0,0,.6);
+    }
+
+    /* ── Display ─────────────────────────────────────────────────── */
+    .display {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 20px 16px;
+      position: relative;
+    }
+
+    .display-tape {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-lo);
+      min-height: 16px;
+      letter-spacing: .06em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 6px;
+      transition: color .2s;
+    }
+
+    .display-main {
+      font-family: var(--mono);
+      font-size: 38px;
+      color: var(--amber);
+      text-align: right;
+      line-height: 1;
+      letter-spacing: .04em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-shadow: 0 0 24px var(--amber-glow);
+      transition: all .1s;
+    }
+
+    .display-main.error {
+      font-size: 20px;
+      color: var(--red);
+      text-shadow: none;
+    }
+
+    .display-author {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-lo);
+      text-align: right;
+      margin-top: 8px;
+      letter-spacing: .1em;
+      min-height: 12px;
+    }
+
+    /* ── History strip ───────────────────────────────────────────── */
+    .history-strip {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      height: 60px;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+    .history-strip::-webkit-scrollbar { display: none; }
+
+    .history-entry {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-lo);
+      line-height: 1.8;
+      display: flex;
+      justify-content: space-between;
+      animation: fadeIn .2s ease;
+    }
+    .history-entry .h-result { color: var(--text-mid); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+
+    /* ── Button grid ─────────────────────────────────────────────── */
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-top: 1px solid var(--border);
+    }
+
+    button {
+      font-family: var(--mono);
+      font-size: 16px;
+      background: var(--surface);
+      color: var(--text-hi);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .08s, color .08s, transform .06s;
+      position: relative;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    button:active { transform: scale(.93); }
+
+    button:hover { background: #252525; }
+
+    /* Modifier keys */
+    button.mod {
+      color: var(--amber);
+      font-size: 13px;
+      letter-spacing: .06em;
+    }
+    button.mod:hover { background: var(--amber-glow); }
+
+    /* Operator keys */
+    button.op {
+      color: var(--amber);
+      font-size: 20px;
+    }
+    button.op:hover { background: var(--amber-glow); }
+
+    /* Equals */
+    button.eq {
+      background: var(--amber);
+      color: #0e0e0e;
+      font-size: 22px;
+      font-weight: bold;
+    }
+    button.eq:hover { background: #f5b830; }
+    button.eq:active { transform: scale(.91); }
+
+    /* Clear */
+    button.clr { color: var(--red); }
+    button.clr:hover { background: rgba(224,64,64,.1); }
+
+    /* Wide button (spans 2 cols) */
+    button.wide { grid-column: span 2; }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    footer {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    footer span {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .16em;
+      color: var(--text-lo);
+      text-transform: uppercase;
+    }
+
+    /* ── Ripple ──────────────────────────────────────────────────── */
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(240,165,0,.18);
+      width: 10px; height: 10px;
+      transform: scale(0);
+      animation: ripple .4s linear;
+      pointer-events: none;
+    }
+    @keyframes ripple { to { transform: scale(14); opacity: 0; } }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────── -->
+<header>
+  <span class="wordmark">⬡ CALC / v1.0</span>
+  <div class="user-pill">
+    <div class="dot"></div>
+    <span>Signed in as <strong>{{ user.name or user.username }}</strong></span>
+    {% if user.email %}<span>·</span><span>{{ user.email }}</span>{% endif %}
+  </div>
+  <a href="/oidc/logout" class="logout-link">SIGN OUT</a>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────────────── -->
+<main>
+  <div class="calculator" role="application" aria-label="Calculator">
+
+    <!-- Display -->
+    <div class="display">
+      <div class="display-tape" id="tape" aria-label="Expression">&nbsp;</div>
+      <div class="display-main" id="display" aria-live="polite" aria-atomic="true">0</div>
+      <div class="display-author" id="author">&nbsp;</div>
+    </div>
+
+    <!-- History -->
+    <div class="history-strip" id="history" aria-label="Calculation history"></div>
+
+    <!-- Buttons -->
+    <div class="btn-grid" role="group" aria-label="Calculator buttons">
+
+      <!-- Row 1 -->
+      <button class="mod clr" data-action="clear"         aria-label="All clear">AC</button>
+      <button class="mod clr" data-action="backspace"     aria-label="Backspace">⌫</button>
+      <button class="op"      data-action="operator" data-op="%" aria-label="Modulo">%</button>
+      <button class="op"      data-action="operator" data-op="÷" aria-label="Divide">÷</button>
+
+      <!-- Row 2 -->
+      <button data-action="digit" data-digit="7">7</button>
+      <button data-action="digit" data-digit="8">8</button>
+      <button data-action="digit" data-digit="9">9</button>
+      <button class="op" data-action="operator" data-op="×" aria-label="Multiply">×</button>
+
+      <!-- Row 3 -->
+      <button data-action="digit" data-digit="4">4</button>
+      <button data-action="digit" data-digit="5">5</button>
+      <button data-action="digit" data-digit="6">6</button>
+      <button class="op" data-action="operator" data-op="-" aria-label="Subtract">−</button>
+
+      <!-- Row 4 -->
+      <button data-action="digit" data-digit="1">1</button>
+      <button data-action="digit" data-digit="2">2</button>
+      <button data-action="digit" data-digit="3">3</button>
+      <button class="op" data-action="operator" data-op="+" aria-label="Add">+</button>
+
+      <!-- Row 5 -->
+      <button class="mod" data-action="sqrt"               aria-label="Square root">√x</button>
+      <button data-action="digit" data-digit="0">0</button>
+      <button data-action="dot"                            aria-label="Decimal point">.</button>
+      <button class="eq" data-action="equals"              aria-label="Equals">=</button>
+
+    </div>
+  </div>
+</main>
+
+<!-- ── Footer ──────────────────────────────────────────────────────── -->
+<footer>
+  <span>Authenticated via Microsoft Entra ID · session owned by {{ user.sub[:8] }}…</span>
+</footer>
+
+<!-- ── Logic ───────────────────────────────────────────────────────── -->
+<script>
+(function () {
+  "use strict";
+
+  // ── State ────────────────────────────────────────────────────────
+  const state = {
+    display:    "0",
+    a:          null,     // first operand (stored as string for precision)
+    op:         null,     // pending operator
+    fresh:      true,     // next digit replaces display
+    history:    [],
+  };
+
+  // ── DOM refs ─────────────────────────────────────────────────────
+  const $display = document.getElementById("display");
+  const $tape    = document.getElementById("tape");
+  const $author  = document.getElementById("author");
+  const $history = document.getElementById("history");
+
+  // ── Render ───────────────────────────────────────────────────────
+  function render() {
+    $display.textContent = state.display;
+    $display.classList.remove("error");
+    if (state.op && state.a !== null) {
+      $tape.textContent = `${state.a} ${state.op}`;
+    } else {
+      $tape.innerHTML = "&nbsp;";
+    }
+    $author.innerHTML = "&nbsp;";
+  }
+
+  function renderError(msg) {
+    $display.textContent = msg;
+    $display.classList.add("error");
+    $tape.innerHTML = "&nbsp;";
+  }
+
+  function pushHistory(expr, result, by) {
+    state.history.unshift({ expr, result, by });
+    if (state.history.length > 10) state.history.pop();
+
+    $history.innerHTML = "";
+    state.history.forEach(h => {
+      const el = document.createElement("div");
+      el.className = "history-entry";
+      el.innerHTML =
+        `<span class="h-expr">${h.expr}</span>` +
+        `<span class="h-result">= ${h.result}</span>`;
+      $history.appendChild(el);
+    });
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────
+  function appendDigit(d) {
+    if (state.fresh) {
+      state.display = d === "." ? "0." : d;
+      state.fresh = false;
+    } else {
+      if (d === "." && state.display.includes(".")) return;
+      if (state.display === "0" && d !== ".") {
+        state.display = d;
+      } else {
+        if (state.display.replace("-","").length >= 14) return;
+        state.display += d;
+      }
+    }
+    render();
+  }
+
+  function setOperator(op) {
+    // If there is a pending op and we have a second operand, evaluate first
+    if (state.op && !state.fresh) {
+      calculate(/* chainOp */ op);
+      return;
+    }
+    state.a   = state.display;
+    state.op  = op;
+    state.fresh = true;
+    render();
+  }
+
+  async function calculate(chainOp = null) {
+    if (state.op === null) return;
+
+    const a = parseFloat(state.a);
+    const b = parseFloat(state.display);
+    const op = state.op;
+
+    const expr = `${state.a} ${op} ${state.display}`;
+
+    try {
+      const res = await fetch("/api/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ a, op, b }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        renderError(data.error || "Error");
+        state.op    = null;
+        state.a     = null;
+        state.fresh = true;
+        return;
+      }
+
+      const result = String(data.result);
+
+      pushHistory(expr, result, data.computed_by);
+
+      state.display = result;
+      state.a       = chainOp ? result : null;
+      state.op      = chainOp || null;
+      state.fresh   = true;
+
+      render();
+      if (data.computed_by) {
+        $author.textContent = `↳ computed for ${data.computed_by}`;
+      }
+
+    } catch (err) {
+      renderError("Network error");
+    }
+  }
+
+  async function sqrt() {
+    const a = parseFloat(state.display);
+    const expr = `√(${state.display})`;
+
+    try {
+      const res = await fetch("/api/calculate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ a, op: "√" }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        renderError(data.error || "Error");
+        state.fresh = true;
+        return;
+      }
+
+      const result = String(data.result);
+      pushHistory(expr, result, data.computed_by);
+      state.display = result;
+      state.a       = null;
+      state.op      = null;
+      state.fresh   = true;
+      render();
+
+    } catch (err) {
+      renderError("Network error");
+    }
+  }
+
+  function clear() {
+    state.display = "0";
+    state.a       = null;
+    state.op      = null;
+    state.fresh   = true;
+    render();
+  }
+
+  function backspace() {
+    if (state.fresh || state.display.length <= 1 ||
+        (state.display.length === 2 && state.display.startsWith("-"))) {
+      state.display = "0";
+      state.fresh   = false;
+    } else {
+      state.display = state.display.slice(0, -1);
+    }
+    render();
+  }
+
+  // ── Button clicks ────────────────────────────────────────────────
+  document.querySelector(".btn-grid").addEventListener("click", e => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+
+    // Ripple
+    const r = document.createElement("span");
+    r.className = "ripple";
+    const rect = btn.getBoundingClientRect();
+    r.style.left = (e.clientX - rect.left - 5) + "px";
+    r.style.top  = (e.clientY - rect.top  - 5) + "px";
+    btn.appendChild(r);
+    setTimeout(() => r.remove(), 400);
+
+    const action = btn.dataset.action;
+    if (action === "digit")    appendDigit(btn.dataset.digit);
+    if (action === "dot")      appendDigit(".");
+    if (action === "operator") setOperator(btn.dataset.op);
+    if (action === "equals")   calculate();
+    if (action === "sqrt")     sqrt();
+    if (action === "clear")    clear();
+    if (action === "backspace") backspace();
+  });
+
+  // ── Keyboard ─────────────────────────────────────────────────────
+  document.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT") return;
+
+    const key = e.key;
+    if (/^[0-9]$/.test(key))    appendDigit(key);
+    else if (key === ".")        appendDigit(".");
+    else if (key === "+")        setOperator("+");
+    else if (key === "-")        setOperator("-");
+    else if (key === "*")        setOperator("×");
+    else if (key === "/")      { e.preventDefault(); setOperator("÷"); }
+    else if (key === "%")        setOperator("%");
+    else if (key === "Enter" || key === "=") calculate();
+    else if (key === "Backspace") backspace();
+    else if (key === "Escape")    clear();
+  });
+
+  // ── Init ─────────────────────────────────────────────────────────
+  render();
+})();
+</script>
+
+</body>
+</html>

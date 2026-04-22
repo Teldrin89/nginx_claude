@@ -1,0 +1,58 @@
+# docker-compose.yml
+#
+# Runs the nginx (OpenResty) + Gunicorn + Flask stack with Entra ID auth.
+#
+# Secrets are supplied via a .env file (see .env.example).
+# Never commit real secrets to version control.
+
+version: "3.9"
+
+services:
+
+  # --------------------------------------------------------------------------
+  # OpenResty – nginx with built-in LuaJIT + lua-resty-openidc
+  # --------------------------------------------------------------------------
+  nginx:
+    image: openresty/openresty:1.25.3.1-alpine  # always pin a version
+    container_name: nginx_oidc
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro          # TLS certificate + key
+    environment:
+      # These are read by oidc_config.lua via os.getenv()
+      - ENTRA_TENANT_ID=${ENTRA_TENANT_ID}
+      - ENTRA_CLIENT_ID=${ENTRA_CLIENT_ID}
+      - ENTRA_CLIENT_SECRET=${ENTRA_CLIENT_SECRET}
+      - APP_BASE_URL=${APP_BASE_URL}
+    depends_on:
+      - flask
+    restart: unless-stopped
+    # lua-resty-openidc requires DNS resolution for Entra ID discovery endpoint
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+
+  # --------------------------------------------------------------------------
+  # Flask application (behind Gunicorn)
+  # --------------------------------------------------------------------------
+  flask:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: flask_app
+    # Do NOT expose port 8000 publicly; nginx is the only ingress.
+    expose:
+      - "8000"
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      # Add any other Flask-specific env vars here
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
