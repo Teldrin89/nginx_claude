@@ -1,0 +1,21 @@
+{
+  "name": "mock-entra-id",
+  "version": "1.0.0",
+  "description": "Local OAuth 2.0 / OIDC identity provider emulating Microsoft Entra ID for development",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "generate-keys": "node scripts/generate-keys.js",
+    "test": "node scripts/test-flow.js"
+  },
+  "keywords": ["oauth2", "oidc", "entra-id", "azure-ad", "mock", "development"],
+  "license": "MIT",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "uuid": "^14.0.0"
+  }
+}
