@@ -1,0 +1,6 @@
+dash==2.18.1
+dash-bootstrap-components==1.6.0
+Flask==3.0.3
+gunicorn==22.0.0
+PyJWT==2.9.0
+cryptography==43.0.1

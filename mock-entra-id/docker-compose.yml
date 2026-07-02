@@ -1,0 +1,24 @@
+version: '3.9'
+
+services:
+  mock-entra:
+    build: .
+    container_name: mock-entra-id
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      BASE_URL: http://localhost:3000   # change to your docker host name if needed
+      TENANT_ID: mock-tenant-id
+    volumes:
+      # Persist generated keys across rebuilds (optional)
+      - entra_certs:/app/certs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  entra_certs:

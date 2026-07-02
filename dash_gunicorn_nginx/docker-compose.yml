@@ -1,0 +1,68 @@
+version: '3.9'
+
+# ============================================================
+# Full dev stack:
+#   mock-entra   — Mock Entra ID identity provider (port 3000)
+#   app          — Dash + Gunicorn (internal, port 8080)
+#   nginx        — Reverse proxy / single entry point (port 8080 → host)
+# ============================================================
+
+services:
+
+  # ── Mock Entra ID ─────────────────────────────────────────
+  mock-entra:
+    build:
+      context: ../mock-entra-id
+    container_name: mock-entra-id
+    environment:
+      PORT: 3000
+      BASE_URL: http://localhost:3000   # must match what the BROWSER uses
+      TENANT_ID: mock-tenant-id
+    ports:
+      - "3000:3000"
+    volumes:
+      - entra_certs:/app/certs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Dash + Gunicorn application ─────────────────────────────
+  app:
+    build:
+      context: ./app
+    container_name: dash-app
+    environment:
+      # NOTE: redirect/issuer URLs embedded in browser-facing
+      # responses use OIDC_BASE_URL — it must be what the BROWSER
+      # can reach (localhost:3000), matching mock-entra's BASE_URL.
+      OIDC_BASE_URL: http://localhost:3000
+      OIDC_TENANT_ID: mock-tenant-id
+      OIDC_CLIENT_ID: my-dev-app
+      OIDC_CLIENT_SECRET: dev-secret-change-me
+      OIDC_REDIRECT_URI: http://localhost:8080/callback
+      OIDC_SCOPE: "openid profile email offline_access"
+      OIDC_POST_LOGOUT_REDIRECT: http://localhost:8080/
+      FLASK_SECRET_KEY: dev-flask-secret-change-me
+      GUNICORN_WORKERS: 2
+    depends_on:
+      mock-entra:
+        condition: service_healthy
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  # ── nginx reverse proxy ─────────────────────────────────────
+  nginx:
+    build:
+      context: ./nginx
+    container_name: nginx-proxy
+    ports:
+      - "8080:80"
+    depends_on:
+      - app
+    restart: unless-stopped
+
+volumes:
+  entra_certs:
