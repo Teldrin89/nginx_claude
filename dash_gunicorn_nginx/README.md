@@ -514,3 +514,103 @@ Same as the Flask version:
 - Set `SESSION_COOKIE_SECURE=True` once behind HTTPS.
 - Gunicorn binds with `forwarded_allow_ips = "*"` for convenience — restrict this to nginx's IP in any shared environment.
 - Mock Entra ID has no rate limiting or audit logging — don't point this stack at real credentials.
+
+---
+
+## Switching to real Microsoft Entra ID
+
+The application code implements standard OIDC Authorization Code + PKCE. Real Entra ID uses the same protocol, so switching is mostly a configuration change — no new libraries, no new auth logic.
+
+### 1. Create an App Registration in Azure Portal
+
+1. **Azure Portal → Microsoft Entra ID → App registrations → New registration**
+   - Name: anything descriptive
+   - Supported account types: *Accounts in this organizational directory only* (single-tenant)
+   - Redirect URI: Web → `https://your-app.example.com/callback`
+
+2. **Authentication tab**
+   - Add `https://your-app.example.com/` as a post-logout redirect URI
+   - Front-channel logout URL: `https://your-app.example.com/logout`
+
+3. **Certificates & secrets → New client secret**
+   - Copy the value immediately — Azure only shows it once
+
+4. **Token configuration** (recommended)
+   - Add optional claims on the ID token: `email`, `family_name`, `given_name`
+   - Without this, `email` may be absent for some account types
+
+5. **App roles** (if you use role-based access like the `/admin` page)
+   - App roles → Create app role for each role (`Admin`, `User`, …)
+   - Enterprise Applications → your app → Users and groups → assign users to roles
+
+### 2. Update environment variables
+
+```bash
+# Real Entra ID — replace these values in your .env file
+
+# Azure tenant ID — found in Entra ID → Overview
+OIDC_BASE_URL=https://login.microsoftonline.com/your-tenant-id-here
+OIDC_TENANT_ID=your-tenant-id-here
+
+# Real Entra ID is a public endpoint — internal and external URL are the same.
+# Set OIDC_INTERNAL_BASE_URL to the same value as OIDC_BASE_URL, or remove it
+# (it defaults to OIDC_BASE_URL when not set).
+OIDC_INTERNAL_BASE_URL=https://login.microsoftonline.com/your-tenant-id-here
+
+# From App Registration → Overview
+OIDC_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# From App Registration → Certificates & secrets
+OIDC_CLIENT_SECRET=your-client-secret-value
+
+# Your app's public HTTPS URL — must match what you registered in step 1
+OIDC_REDIRECT_URI=https://your-app.example.com/callback
+OIDC_POST_LOGOUT_REDIRECT=https://your-app.example.com/
+
+# These stay the same
+OIDC_SCOPE=openid profile email offline_access
+FLASK_SECRET_KEY=<your stable random key>
+```
+
+### 3. Two code changes in main.py
+
+**Remove the WSL clock skew workaround** — the 150 s leeway and disabled `iat` check were needed because the WSL clock freezes on Windows sleep, causing a large skew between Node.js (Mock Entra ID) and Python. With real Entra ID served from Microsoft's infrastructure there is no such skew. Restore normal validation:
+
+```python
+# Before (WSL workaround):
+options={"require": ["exp", "iat", "sub"], "verify_iat": False},
+leeway=timedelta(seconds=150),
+
+# After (real Entra ID):
+options={"require": ["exp", "iat", "sub"]},
+leeway=timedelta(seconds=10),   # small tolerance is still good practice
+```
+
+**Enable the secure session cookie** — uncomment the one line in the Flask config:
+
+```python
+server.config.update(
+    SESSION_COOKIE_NAME="dash_session",
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_PATH="/",
+    SESSION_COOKIE_SECURE=True,   # ← uncomment this
+)
+```
+
+### 4. What stays identical
+
+Everything else in the code works unchanged against real Entra ID:
+
+| Component | Why it stays the same |
+|---|---|
+| OIDC discovery URL | Real Entra ID uses the same `/.well-known/openid-configuration` path |
+| PKCE (S256) | Real Entra ID fully supports it, same parameters |
+| Token exchange | Same POST to `/token`, same JSON response shape |
+| JWKS verification | Real Entra ID serves RS256 keys at the same path pattern |
+| `roles` and `groups` claims | Same claim names — populated from Azure instead of the mock user list |
+| `/api/whoami` Bearer auth | Works identically |
+| Session handling | No change |
+| Gunicorn / nginx config | No change |
+
+The `OIDC_BASE_URL` / `OIDC_INTERNAL_BASE_URL` split becomes irrelevant — `login.microsoftonline.com` is publicly reachable from both the browser and your Gunicorn process, so both variables hold the same value. The code still reads them separately, which does no harm.
